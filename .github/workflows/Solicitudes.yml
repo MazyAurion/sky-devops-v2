@@ -1,0 +1,66 @@
+name: "Solicitudes (Mejoras y Funciones)"
+
+on:
+  workflow_dispatch:
+    inputs:
+      tipo:
+        description: "Tipo de solicitud"
+        required: true
+        type: choice
+        options:
+          - mejora
+          - nueva_funcion
+      titulo:
+        description: "Título de la solicitud"
+        required: true
+        type: string
+      descripcion:
+        description: "Descripción detallada"
+        required: true
+        type: string
+      prioridad:
+        description: "Prioridad"
+        required: true
+        type: choice
+        options:
+          - alta
+          - media
+          - baja
+
+permissions:
+  issues: write
+
+jobs:
+  issue:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Crear Issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const tipo = core.getInput('tipo');
+            const titulo = core.getInput('titulo');
+            const descripcion = core.getInput('descripcion');
+            const prioridad = core.getInput('prioridad');
+
+            const labels = [];
+            labels.push(tipo === 'mejora' ? 'mejora' : 'feature-request');
+            labels.push(`prioridad-${prioridad}`);
+
+            const body = [
+              `**Tipo:** ${tipo}`,
+              `**Prioridad:** ${prioridad}`,
+              ``,
+              `**Descripción:**`,
+              descripcion
+            ].join("\n");
+
+            const issue = await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: titulo,
+              body,
+              labels
+            });
+
+            core.notice(`Issue creada: #${issue.data.number}`);
