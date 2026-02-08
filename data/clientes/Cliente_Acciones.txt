@@ -1,0 +1,8 @@
+SKY - EXPEDIENTE DE CLIENTE
+Cliente: Cliente Acciones
+Archivo: Cliente_Acciones.txt
+Contacto: Acciones@hotmial.com
+Fecha de creación: 2026-02-08 04:43:25
+----------------------------------------
+HISTORIAL DE SERVICIOS:
+- [2026-02-08 04:43:25] internet | intalacion 2000 Mbps
