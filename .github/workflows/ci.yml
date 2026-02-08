@@ -1,0 +1,30 @@
+name: "CI - Validación del Código"
+
+on:
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Validar sintaxis (py_compile)
+        run: |
+          python -m py_compile app.py client_manager.py
+
+      - name: Smoke test (importar y asegurar carpetas)
+        run: |
+          python - <<'PY'
+          import client_manager
+          client_manager.ensure_storage()
+          print("OK: ensure_storage ejecutado")
+          PY
