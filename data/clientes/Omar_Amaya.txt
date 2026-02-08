@@ -1,0 +1,8 @@
+SKY - EXPEDIENTE DE CLIENTE
+Cliente: Omar Amaya
+Archivo: Omar_Amaya.txt
+Contacto: omar.amaya@hotmail.com
+Fecha de creación: 2026-02-08 04:48:28
+----------------------------------------
+HISTORIAL DE SERVICIOS:
+- [2026-02-08 04:48:28] internet | internet 5000 mbps
