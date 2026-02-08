@@ -1,0 +1,173 @@
+name: "Operaciones de Clientes (Sky)"
+
+on:
+  workflow_dispatch:
+    inputs:
+      accion:
+        description: "Acción a ejecutar"
+        required: true
+        type: choice
+        options:
+          - crear_cliente
+          - modificar_cliente
+          - consultar_cliente
+      nombre:
+        description: "Nombre del cliente (ej: Juan Perez)"
+        required: true
+        type: string
+      contacto:
+        description: "Contacto (solo para crear/modificar)"
+        required: false
+        type: string
+      servicio:
+        description: "Servicio (solo para crear)"
+        required: false
+        type: string
+      descripcion:
+        description: "Descripción del servicio (solo para crear)"
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Asegurar carpeta data/clientes
+        run: |
+          mkdir -p data/clientes
+
+      - name: Ejecutar acción
+        env:
+          ACCION: ${{ inputs.accion }}
+          NOMBRE: ${{ inputs.nombre }}
+          CONTACTO: ${{ inputs.contacto }}
+          SERVICIO: ${{ inputs.servicio }}
+          DESCRIPCION: ${{ inputs.descripcion }}
+        run: |
+          python - <<'PY'
+          import os
+          from datetime import datetime
+
+          ACCION = os.environ.get("ACCION")
+          NOMBRE = (os.environ.get("NOMBRE") or "").strip()
+          CONTACTO = (os.environ.get("CONTACTO") or "").strip()
+          SERVICIO = (os.environ.get("SERVICIO") or "").strip()
+          DESCRIPCION = (os.environ.get("DESCRIPCION") or "").strip()
+
+          CLIENTS_DIR = os.path.join("data", "clientes")
+
+          def now_str():
+            return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+          def to_safe_filename(name: str) -> str:
+            name = " ".join(name.strip().split())
+            safe = name.replace(" ", "_")
+            safe = "".join(ch for ch in safe if ch.isalnum() or ch == "_")
+            return safe
+
+          def client_path(name: str) -> str:
+            return os.path.join(CLIENTS_DIR, f"{to_safe_filename(name)}.txt")
+
+          if not NOMBRE:
+            raise SystemExit("ERROR: El nombre es obligatorio.")
+
+          path = client_path(NOMBRE)
+
+          if ACCION == "crear_cliente":
+            if os.path.exists(path):
+              raise SystemExit("ERROR: El cliente ya existe.")
+            if not SERVICIO or not DESCRIPCION:
+              raise SystemExit("ERROR: Para crear, SERVICIO y DESCRIPCION son obligatorios.")
+
+            with open(path, "w", encoding="utf-8") as f:
+              f.write("SKY - EXPEDIENTE DE CLIENTE\n")
+              f.write(f"Cliente: {NOMBRE}\n")
+              f.write(f"Archivo: {os.path.basename(path)}\n")
+              f.write(f"Contacto: {CONTACTO if CONTACTO else 'N/A'}\n")
+              f.write(f"Fecha de creación: {now_str()}\n")
+              f.write("----------------------------------------\n")
+              f.write("HISTORIAL DE SERVICIOS:\n")
+              f.write(f"- [{now_str()}] {SERVICIO} | {DESCRIPCION}\n")
+
+            print("OK: Cliente creado:", path)
+
+          elif ACCION == "modificar_cliente":
+            if not os.path.exists(path):
+              raise SystemExit("ERROR: El cliente no existe.")
+            if not CONTACTO:
+              raise SystemExit("ERROR: Para modificar, CONTACTO es obligatorio.")
+
+            lines = []
+            with open(path, "r", encoding="utf-8") as f:
+              lines = f.readlines()
+
+            new_lines = []
+            changed = False
+            for line in lines:
+              if line.startswith("Contacto: "):
+                new_lines.append(f"Contacto: {CONTACTO}\n")
+                changed = True
+              else:
+                new_lines.append(line)
+
+            if not changed:
+              out = []
+              inserted = False
+              for line in new_lines:
+                out.append(line)
+                if line.startswith("Archivo: ") and not inserted:
+                  out.append(f"Contacto: {CONTACTO}\n")
+                  inserted = True
+              new_lines = out
+
+            with open(path, "w", encoding="utf-8") as f:
+              f.writelines(new_lines)
+
+            print("OK: Cliente modificado (contacto):", path)
+
+          elif ACCION == "consultar_cliente":
+            if not os.path.exists(path):
+              raise SystemExit("ERROR: El cliente no existe.")
+            with open(path, "r", encoding="utf-8") as f:
+              content = f.read()
+
+            report_path = "consulta_cliente.txt"
+            with open(report_path, "w", encoding="utf-8") as rf:
+              rf.write(content)
+
+            print("OK: Consulta generada en", report_path)
+
+          else:
+            raise SystemExit("ERROR: Acción inválida.")
+          PY
+
+      - name: Commit cambios (si aplica)
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          git add data/clientes || true
+          git add consulta_cliente.txt || true
+          if git diff --cached --quiet; then
+            echo "No hay cambios para commit."
+          else
+            git commit -m "Acción GitHub Actions: ${{ inputs.accion }} (${{ inputs.nombre }})"
+            git push
+          fi
+
+      - name: Subir evidencia de consulta (si existe)
+        if: ${{ inputs.accion == 'consultar_cliente' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: evidencia-consulta-cliente
+          path: consulta_cliente.txt
